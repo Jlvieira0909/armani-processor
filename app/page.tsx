@@ -1,66 +1,91 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { useState, useRef } from "react";
+import "./styles.css";
 
 export default function Home() {
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Função chamada quando o usuário clica em "Send File"
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Função chamada quando o usuário seleciona um arquivo
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+
+    try {
+      // Cria o formulário para enviar o arquivo
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Envia para a nossa API criada no Passo 2
+      const response = await fetch("/api/process", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha no processamento");
+      }
+
+      // Converte a resposta em um "Blob" (arquivo) para download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Cria um link temporário e clica nele automaticamente para baixar
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "output.csv";
+      document.body.appendChild(a);
+      a.click();
+
+      // Limpeza
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error(error);
+      alert("Ocorreu um erro ao processar o arquivo.");
+    } finally {
+      setIsLoading(false);
+      // Limpa o input para permitir selecionar o mesmo arquivo novamente se necessário
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="mainPage">
+      <h1 className="mainPageTitle">Sizebay Armani Processor</h1>
+
+      {/* Input invisível para selecionar arquivo */}
+      <input
+        type="file"
+        accept=".csv"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: "none" }}
+      />
+
+      {isLoading ? (
+        // Simples feedback visual de Loading
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <p className="loading-text">Processando arquivo... Aguarde.</p>
+          {/* Você pode adicionar um spinner CSS aqui se quiser */}
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      ) : (
+        <button className="sendFileButton" onClick={handleButtonClick}>
+          Send File
+        </button>
+      )}
     </div>
   );
 }

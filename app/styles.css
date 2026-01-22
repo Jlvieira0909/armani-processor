@@ -1,0 +1,37 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+
+* {
+  font-family: "Outfit", sans-serif !important;
+}
+
+.mainPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 2em;
+  gap: 2em;
+  background-image: url("/background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.mainPageTitle {
+  font-size: 4em;
+}
+
+.sendFileButton {
+  padding: 16px 200px;
+  background: #000000;
+  margin-top: 1em;
+  cursor: pointer;
+  font-size: 1.5em;
+  transition: all 0.3s ease;
+}
+
+.sendFileButton:hover {
+  background: #333333;
+  color: #ffffff;
+}
