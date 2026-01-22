@@ -1,9 +1,11 @@
-// app/api/process/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { parse } from "csv-parse/sync"; // Usando versão sync para simplificar api
+import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
-// ===== LÓGICA DO SEU SCRIPT ORIGINAL (Funções Auxiliares) =====
+// Força o Next.js a não tentar renderizar essa rota estaticamente
+export const dynamic = "force-dynamic";
+
+// ===== LÓGICA E FUNÇÕES AUXILIARES =====
 const NORMALIZAR_NUMERO = true;
 const TRIM_TEXTO = true;
 const reTipo = /^tipo\s*dim\s*(\d+)$/i;
@@ -31,17 +33,6 @@ const MEASURE_MAP = new Map(
   })
 );
 
-function normKey(s: any) {
-  return String(s || "")
-    .trim()
-    .toLowerCase();
-}
-
-function mapMeasureName(raw: any) {
-  const key = normKey(raw);
-  return MEASURE_MAP.get(key) || sanitizeHeaderName(raw);
-}
-
 const genderMap = new Map(
   Object.entries({
     B: "male",
@@ -52,6 +43,17 @@ const genderMap = new Map(
     W: "female",
   })
 );
+
+function normKey(s: any) {
+  return String(s || "")
+    .trim()
+    .toLowerCase();
+}
+
+function mapMeasureName(raw: any) {
+  const key = normKey(raw);
+  return MEASURE_MAP.get(key) || sanitizeHeaderName(raw);
+}
 
 function getGenderFromGeCode(v: any) {
   if (v == null) return "";
@@ -77,19 +79,18 @@ function sanitizeHeaderName(name: any) {
   return raw.replace(/\s+/g, "");
 }
 
+// AQUI ESTÁ A CORREÇÃO DE TIPAGEM QUE ESTAVA FALTANDO (: any)
 function normalizeNumberLike(value: any): any {
   if (value == null) return value;
-  let s = String(value).trim();
-  s = s
+  let s = String(value)
+    .trim()
     .replace(/\bcm\b/gi, "")
     .replace(/"/g, "")
     .trim();
-
   const commaAsDecimal = /^-?\d{1,3}(?:\.\d{3})*,\d+$/;
   const simpleComma = /^-?\d+,\d+$/;
   const simpleDot = /^-?\d+(\.\d+)?$/;
   const intOnly = /^-?\d+$/;
-
   if (simpleDot.test(s) || intOnly.test(s)) return s;
   if (commaAsDecimal.test(s) || simpleComma.test(s)) {
     return s.replace(/\./g, "").replace(",", ".");
@@ -125,7 +126,7 @@ function shouldSkipRow(row: any) {
   return code.includes("ACC");
 }
 
-// ===== ROTA API DO NEXT.JS =====
+// ===== ROTA API (BACKEND) =====
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -138,10 +139,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Ler o arquivo como texto
     const csvContent = await file.text();
 
-    // 2. Parsear o CSV (Input)
     const rowsRaw = parse(csvContent, {
       columns: true,
       skip_empty_lines: true,
@@ -150,11 +149,13 @@ export async function POST(req: NextRequest) {
       trim: false,
     });
 
+    // Filtra linhas inválidas
     const rows = rowsRaw.filter((r: any) => !shouldSkipRow(r));
 
-    // 3. Processamento (Lógica original)
+    // Coletar medidas
+    // AQUI ESTÁ A CORREÇÃO DO LOOP (rows as any[])
     const allMeasures = new Set<string>();
-    for (const row of rows) {
+    for (const row of rows as any[]) {
       for (const [key, val] of Object.entries(row)) {
         const mTipo = key.match(reTipo);
         if (mTipo) {
@@ -190,7 +191,8 @@ export async function POST(req: NextRequest) {
     const finalHeaders = [...fixedHeaders, ...measureHeaders];
 
     const out = [];
-    for (const row of rows) {
+    // AQUI ESTÁ A SEGUNDA CORREÇÃO DO LOOP (rows as any[])
+    for (const row of rows as any[]) {
       const base: any = {};
       base["name"] = trimAll(row["SizeGrid_Code_Category"]) || "";
       base["gender"] = getGenderFromGeCode(row["Ge Code"]);
@@ -241,13 +243,11 @@ export async function POST(req: NextRequest) {
       out.push(base);
     }
 
-    // 4. Transformar em CSV string (Output)
     const outputString = stringify(out, {
       header: true,
       columns: finalHeaders,
     });
 
-    // 5. Retornar como arquivo para download
     return new NextResponse(outputString, {
       status: 200,
       headers: {
