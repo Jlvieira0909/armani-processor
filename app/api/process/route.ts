@@ -77,17 +77,19 @@ function sanitizeHeaderName(name: any) {
   return raw.replace(/\s+/g, "");
 }
 
-function normalizeNumberLike(value: any) {
+function normalizeNumberLike(value: any): any {
   if (value == null) return value;
-  let s = String(value)
-    .trim()
+  let s = String(value).trim();
+  s = s
     .replace(/\bcm\b/gi, "")
     .replace(/"/g, "")
     .trim();
+
   const commaAsDecimal = /^-?\d{1,3}(?:\.\d{3})*,\d+$/;
   const simpleComma = /^-?\d+,\d+$/;
   const simpleDot = /^-?\d+(\.\d+)?$/;
   const intOnly = /^-?\d+$/;
+
   if (simpleDot.test(s) || intOnly.test(s)) return s;
   if (commaAsDecimal.test(s) || simpleComma.test(s)) {
     return s.replace(/\./g, "").replace(",", ".");
